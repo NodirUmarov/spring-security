@@ -1,5 +1,6 @@
 package kg.itschool.register.service.impl;
 
+import kg.itschool.register.model.MessageResponse;
 import kg.itschool.register.model.dto.UserDto;
 import kg.itschool.register.model.entity.User;
 import kg.itschool.register.model.mapper.UserMapper;
@@ -54,6 +55,37 @@ public class UserServiceImpl implements UserService {
                                 .username(request.getUsername())
                                 .build()));
     }
+
+    @Override
+    public UserDto getCurrentUser() {
+        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        return userMapper.userToUserDto(user);
+    }
+
+    @Override
+    public MessageResponse blockUser(String username) {
+        return userRepository
+                .findByUsername(username)
+                .map(user -> {
+                    user.setIsEnabled(false);
+                    userRepository.save(user);
+                    return MessageResponse.of("User blocked");
+                })
+                .orElseThrow(() -> new UsernameNotFoundException("User " + username + " not found"));
+    }
+
+    @Override
+    public MessageResponse unBlockUser(String username) {
+        return userRepository
+                .findByUsername(username)
+                .map(user -> {
+                    user.setIsEnabled(true);
+                    userRepository.save(user);
+                    return MessageResponse.of("User unblocked");
+                })
+                .orElseThrow(() -> new UsernameNotFoundException("User " + username + " not found"));
+    }
+
 
     private void setLastActivity() {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();

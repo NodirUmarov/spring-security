@@ -26,7 +26,7 @@ public class UserController {
                 .body(userService.getById(username));
     }
 
-    @PreAuthorize("hasAnyAuthority('USER_CREATE')")
+    @PreAuthorize("hasAnyAuthority('USER_CREATE', 'SUPER_AUTHORITY')")
     @PostMapping("/create")
     public ResponseEntity<?> create(@RequestBody @Valid CreateUserRequest request) {
         return ResponseEntity
@@ -40,6 +40,30 @@ public class UserController {
         return ResponseEntity
                 .status(HttpStatus.OK)
                 .body(userService.getById(username));
+    }
+
+    @PreAuthorize("hasAnyAuthority('SUPER_AUTHORITY')")
+    @PatchMapping("/block-user")
+    public ResponseEntity<?> blockUser(@RequestParam String username) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(userService.blockUser(username));
+    }
+
+    @PreAuthorize("hasAnyAuthority('SUPER_AUTHORITY')")
+    @PatchMapping("/unblock-user")
+    public ResponseEntity<?> unblockUser(@RequestParam String username) {
+        return ResponseEntity
+                .status(HttpStatus.ACCEPTED)
+                .body(userService.unBlockUser(username));
+    }
+
+    @PreAuthorize("hasAnyAuthority('USER_READ', 'SUPER_AUTHORITY')")
+    @GetMapping("/get-current-user")
+    public ResponseEntity<?> getCurrentUser() {
+        return ResponseEntity
+                .status(HttpStatus.OK)
+                .body(userService.getCurrentUser());
     }
 
 }
