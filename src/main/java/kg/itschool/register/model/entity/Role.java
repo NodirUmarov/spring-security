@@ -29,5 +29,4 @@ public class Role extends AbstractAuditable<User, Long> {
             schema = "register_details"
     )
     List<Authority> authorities;
-
 }

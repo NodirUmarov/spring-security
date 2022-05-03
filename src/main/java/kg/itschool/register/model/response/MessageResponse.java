@@ -1,4 +1,4 @@
-package kg.itschool.register.model;
+package kg.itschool.register.model.response;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;

@@ -1,6 +1,6 @@
 package kg.itschool.register.service;
 
-import kg.itschool.register.model.MessageResponse;
+import kg.itschool.register.model.response.MessageResponse;
 import kg.itschool.register.model.dto.UserDto;
 import kg.itschool.register.model.request.CreateUserRequest;
 import org.springframework.security.core.userdetails.UserDetailsService;

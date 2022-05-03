@@ -1,16 +1,18 @@
 package kg.itschool.register.service.impl;
 
-import kg.itschool.register.model.MessageResponse;
+import kg.itschool.register.model.response.MessageResponse;
 import kg.itschool.register.model.dto.UserDto;
 import kg.itschool.register.model.entity.User;
 import kg.itschool.register.model.mapper.UserMapper;
 import kg.itschool.register.model.request.CreateUserRequest;
-import kg.itschool.register.repository.RoleRepository;
 import kg.itschool.register.repository.UserRepository;
 import kg.itschool.register.service.RoleService;
 import kg.itschool.register.service.UserService;
+import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
@@ -18,9 +20,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserServiceImpl implements UserService {
 
     @NonNull RoleService roleService;
@@ -86,10 +90,21 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UsernameNotFoundException("User " + username + " not found"));
     }
 
-
     private void setLastActivity() {
         User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         currentUser.setLastActivity(LocalDateTime.now());
         userRepository.save(currentUser);
+    }
+
+    @Scheduled(fixedRate = 86_400_000)
+    private void checkLastActivity() {
+        userRepository
+                .saveAll(userRepository.findAll()
+                .stream()
+                .peek(user -> {
+                    if (user.getLastActivity().plusMonths(6).isBefore(LocalDateTime.now())) {
+                        user.setIsAccountNonExpired(false);
+                    }
+                }).collect(Collectors.toList()));
     }
 }
