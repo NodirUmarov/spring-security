@@ -123,8 +123,8 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-    @Scheduled(fixedRate = 86_400_000)
-    protected void checkLastActivity() {
+    @Scheduled(cron = "0 0 0 1/1 * ? *")
+    void checkLastActivity() {
         userRepository
                 .saveAll(userRepository.findAll()
                 .stream()

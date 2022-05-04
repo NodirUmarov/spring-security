@@ -3,7 +3,7 @@ package kg.itschool.register.model.entity;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.hibernate.annotations.Cascade;
-import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.Formula;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +11,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Entity
@@ -28,8 +29,17 @@ public class User implements UserDetails {
     @Column(name = "username", nullable = false, unique = true)
     String username;
 
-    @Column(name = "password", nullable = false)
+    @Formula("SELECT p.password " +
+            "FROM tb_passwords p " +
+            "WHERE is_current_password = TRUE " +
+            "LIMIT 1")
     String password;
+
+    @ToString.Exclude
+    @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false, updatable = false)
+    List<Password> passwords;
 
     @Cascade(org.hibernate.annotations.CascadeType.SAVE_UPDATE)
     @ManyToOne
@@ -68,6 +78,7 @@ public class User implements UserDetails {
                 .collect(Collectors.toList());
     }
 
+    // AUTHENTICATION
     @Override
     public boolean isAccountNonExpired() {
         return isAccountNonExpired;

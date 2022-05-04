@@ -58,6 +58,8 @@ public class UserController {
                 .body(userService.unBlockUser(username));
     }
 
+
+
     @PreAuthorize("hasAnyAuthority('USER_READ', 'SUPER_AUTHORITY')")
     @GetMapping("/get-current-user")
     public ResponseEntity<?> getCurrentUser() {
