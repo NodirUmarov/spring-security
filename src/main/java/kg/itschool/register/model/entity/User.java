@@ -51,12 +51,19 @@ public class User implements UserDetails {
     @Column(name = "last_activity")
     LocalDateTime lastActivity;
 
+    @Column(name = "locked_until")
+    LocalDateTime lockedUntil;
+
+    @Column(name = "login_attempts", columnDefinition = "INT DEFAULT 0")
+    Integer loginAttempts;
+
     // AUTHORIZATION
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return role
                 .getAuthorities()
                 .stream()
+                .filter(Authority::getIsEnabled)
                 .map(authority -> new SimpleGrantedAuthority(authority.getAuthorityName()))
                 .collect(Collectors.toList());
     }

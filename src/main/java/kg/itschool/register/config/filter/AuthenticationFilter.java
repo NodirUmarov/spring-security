@@ -15,12 +15,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +41,7 @@ import java.util.stream.Collectors;
 public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     @NonNull UserService userService;
+    @NonNull PasswordEncoder encoder;
 
     @Value("${spring.security.secret}")
     String secret;
@@ -84,7 +87,11 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
                 .withNotBefore(new Date())
                 .withIssuer(request.getRequestURL().toString())
                 .withExpiresAt(new Date(System.currentTimeMillis() + duration))
-                .withClaim("authorities", user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+                .withClaim("authorities", user.getAuthorities()
+                        .stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList()))
+                .withClaim("type_of_token", "access")
                 .sign(algorithm);
 
         String refreshAccessToken = JWT.create()
@@ -93,7 +100,11 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
                 .withNotBefore(new Date(System.currentTimeMillis() + duration))
                 .withIssuer(request.getRequestURL().toString())
                 .withExpiresAt(new Date(System.currentTimeMillis() + duration * 2))
-                .withClaim("authorities", user.getAuthorities().stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()))
+                .withClaim("authorities", user.getAuthorities()
+                        .stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .collect(Collectors.toList()))
+                .withClaim("type_of_token", "refresh")
                 .sign(algorithm);
 
         TokenResponse tokenResponse = TokenResponse
@@ -102,12 +113,15 @@ public class AuthenticationFilter extends UsernamePasswordAuthenticationFilter {
                 .refreshToken(refreshAccessToken)
                 .build();
 
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         new ObjectMapper()
                 .writeValue(response.getOutputStream(), tokenResponse);
     }
 
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed) throws IOException, ServletException {
-        super.unsuccessfulAuthentication(request, response, failed);
+        if (failed instanceof BadCredentialsException) {
+            userService.checkAttempts(request.getHeader("password"), request.getHeader("username"));
+        }
     }
 }

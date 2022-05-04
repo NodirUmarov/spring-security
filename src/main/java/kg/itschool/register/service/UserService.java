@@ -13,4 +13,6 @@ public interface UserService extends UserDetailsService {
     UserDto getCurrentUser();
     MessageResponse blockUser(String username);
     MessageResponse unBlockUser(String username);
+    void setLastActivity();
+    void checkAttempts(String password, String username);
 }

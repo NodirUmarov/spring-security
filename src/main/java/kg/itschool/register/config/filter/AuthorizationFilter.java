@@ -4,7 +4,11 @@ import com.auth0.jwt.JWT;
 import com.auth0.jwt.JWTVerifier;
 import com.auth0.jwt.algorithms.Algorithm;
 import com.auth0.jwt.interfaces.DecodedJWT;
+import kg.itschool.register.exception.BadTokenException;
+import kg.itschool.register.service.UserService;
 import lombok.AccessLevel;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import lombok.var;
@@ -27,15 +31,19 @@ import java.util.List;
 @Slf4j
 @Component
 @Configuration
+@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class AuthorizationFilter extends OncePerRequestFilter {
+
+    @NonNull UserService userService;
 
     @Value("${spring.security.secret}")
     String secret;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-        if (request.getServletPath().equals("/api/login")) {
+        String requestedApi = request.getServletPath();
+        if (requestedApi.equals("/api/login")) {
             filterChain.doFilter(request, response);
         } else {
             String token = request.getHeader("Authorization");
@@ -53,10 +61,20 @@ public class AuthorizationFilter extends OncePerRequestFilter {
                         .get("authorities")
                         .asList(SimpleGrantedAuthority.class);
 
+                String tokenType = decodedJWT
+                        .getClaims()
+                        .get("type_of_token")
+                        .asString();
+
+                if (tokenType.equals("refresh") && !requestedApi.equals("/api/refresh")) {
+                    throw new BadTokenException("Refresh token used incorrectly");
+                }
+
                 var usernameToken = new UsernamePasswordAuthenticationToken(username, null, authorities);
                 SecurityContextHolder.getContext().setAuthentication(usernameToken);
 
                 filterChain.doFilter(request, response);
+                userService.setLastActivity();
             }
         }
     }

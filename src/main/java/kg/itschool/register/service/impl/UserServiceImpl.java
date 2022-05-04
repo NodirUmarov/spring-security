@@ -18,6 +18,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -34,18 +35,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return
-                userRepository
-                        .findByUsername(username)
-                        .orElseThrow(() -> new UsernameNotFoundException("Username " + username + " not found"));
+        return getByIdEntity(username);
     }
 
     @Override
     public UserDto getById(String username) {
-        setLastActivity();
-        return userMapper.userToUserDto(userRepository
-                .findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Username " + username + " not found")));
+        return userMapper.userToUserDto(getByIdEntity(username));
+    }
+
+    private User getByIdEntity(String username) {
+        return userRepository
+                .findById(username)
+                .orElseThrow(() -> new UsernameNotFoundException("Username " + username + " not found"));
     }
 
     @Override
@@ -62,14 +63,20 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto getCurrentUser() {
-        User user = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String username = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal()
+                .toString();
+
+        User user = getByIdEntity(username);
         return userMapper.userToUserDto(user);
     }
 
     @Override
     public MessageResponse blockUser(String username) {
         return userRepository
-                .findByUsername(username)
+                .findById(username)
                 .map(user -> {
                     user.setIsEnabled(false);
                     userRepository.save(user);
@@ -81,7 +88,7 @@ public class UserServiceImpl implements UserService {
     @Override
     public MessageResponse unBlockUser(String username) {
         return userRepository
-                .findByUsername(username)
+                .findById(username)
                 .map(user -> {
                     user.setIsEnabled(true);
                     userRepository.save(user);
@@ -90,14 +97,34 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UsernameNotFoundException("User " + username + " not found"));
     }
 
-    private void setLastActivity() {
-        User currentUser = (User) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        currentUser.setLastActivity(LocalDateTime.now());
-        userRepository.save(currentUser);
+    @Transactional
+    public void setLastActivity() {
+        String username = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal()
+                .toString();
+
+        userRepository.updateLastActivity(username);
+    }
+
+    @Override
+    public void checkAttempts(String password, String username) {
+        User user = getByIdEntity(username);
+
+         if (!encoder.matches(password, user.getPassword())) {
+             user.setLoginAttempts(user.getLoginAttempts() + 1);
+
+             if (user.getLoginAttempts() >= 3) {
+                 user.setIsAccountNonLocked(false);
+                 user.setLockedUntil(LocalDateTime.now().plusMinutes(1));
+             }
+             userRepository.save(user);
+        }
     }
 
     @Scheduled(fixedRate = 86_400_000)
-    private void checkLastActivity() {
+    protected void checkLastActivity() {
         userRepository
                 .saveAll(userRepository.findAll()
                 .stream()
