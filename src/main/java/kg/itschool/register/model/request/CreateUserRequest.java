@@ -7,6 +7,7 @@ import lombok.experimental.FieldDefaults;
 import org.hibernate.validator.constraints.Length;
 
 import javax.validation.constraints.Email;
+import javax.validation.constraints.NotBlank;
 
 @Data
 @NoArgsConstructor
@@ -21,4 +22,14 @@ public class CreateUserRequest {
 
     @Length(min = 2)
     String roleName;
+
+    @NotBlank
+    @Length(min = 2)
+    String firstName;
+
+    @NotBlank
+    @Length(min = 2)
+    String lastName;
+
+    String patronymic;
 }

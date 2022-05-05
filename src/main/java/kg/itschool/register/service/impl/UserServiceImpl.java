@@ -1,5 +1,7 @@
 package kg.itschool.register.service.impl;
 
+import kg.itschool.register.feign.KapchykClient;
+import kg.itschool.register.model.request.CreateClientUserRequest;
 import kg.itschool.register.model.response.MessageResponse;
 import kg.itschool.register.model.dto.UserDto;
 import kg.itschool.register.model.entity.User;
@@ -12,6 +14,7 @@ import lombok.AccessLevel;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import lombok.var;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -32,6 +35,7 @@ public class UserServiceImpl implements UserService {
     @NonNull UserRepository userRepository;
     @NonNull UserMapper userMapper;
     @NonNull PasswordEncoder encoder;
+    @NonNull KapchykClient client;
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
@@ -51,14 +55,27 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public UserDto create(CreateUserRequest request) {
+
+        User user = userRepository
+                .save(User
+                        .builder()
+                        .password(encoder.encode(request.getPassword()))
+                        .role(((RoleServiceImpl) roleService).getRoleByName(request.getRoleName()))
+                        .username(request.getUsername())
+                        .build());
+
+        var clientUserRequest = CreateClientUserRequest
+                .builder()
+                .email(request.getUsername())
+                .firstName(request.getFirstName())
+                .lastName(request.getLastName())
+                .patronymic(request.getPatronymic())
+                .build();
+
+        client.create(clientUserRequest);
+
         return userMapper
-                .userToUserDto(userRepository
-                        .save(User
-                                .builder()
-                                .password(encoder.encode(request.getPassword()))
-                                .role(((RoleServiceImpl) roleService).getRoleByName(request.getRoleName()))
-                                .username(request.getUsername())
-                                .build()));
+                .userToUserDto(user);
     }
 
     @Override
